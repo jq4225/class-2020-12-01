@@ -24,14 +24,29 @@ week_12 <- shaming %>%
 **Prompt:** Create a fitted model object called `fit_1` using this formula or, if you want, a formula which you prefer. You are trying to model `age` as a function of various parameters.
 
 age ~ sex + solo + primary_02 + primary_04 + treatment + sex:solo
+
+```{r}
+fit_1 <- stan_glm(age ~ sex + solo + primary_02 + 
+                    primary_04 + treatment + sex:solo,
+                  data = week_12,
+                  refresh = 0)
+```
+
                     
 * Is this a causal or predictive model? Why?
 
+Predictive b/c age is the outcome, treatments don't make you older/younger
+
 * Interpret the fitted model. 
+Intercept: average age for female living w/ people who didn't vote in either primary and was not subject to a treatment (was in control).
 
 * Should we keep all these variables? And the interaction term?
 
+Treatment doesn't make sense because receiving certain voting treatments shouldn't be predictive of age / it's not significant in the model.
+
 * Are you surprised about the meaningfulness, or lack thereof, for the treatment variables?
+
+not surprised? If treatments are randomly assigned they shouldn't be correlated w/ age
 
 
 
@@ -41,6 +56,31 @@ age ~ sex + solo + primary_02 + primary_04 + treatment + sex:solo
 **Prompt:** Provide a posterior probability distribution for the expected difference in ages between those who live alone and those who do not. (Hint: Given that we are asking for an expected value, use `posterior_epred()`.)
 
 
+```{r}
+newobs <- expand_grid(solo = c(TRUE, FALSE), sex = c("Male", "Female"),
+                 primary_02 = "No", primary_04 = "No",
+                 treatment = "Control")
+
+pe <- posterior_epred(fit_1, newdata = newobs) %>%
+  as_tibble() %>%
+  rename('male_t' = `1`,
+         'female_t' = `2`,
+         'male_f' = `3`,
+         'female_f' = `4`) %>%
+  mutate(male_diff = male_t - male_f,
+         female_diff = female_t - female_f) %>%
+  select(male_diff, female_diff) %>%
+  pivot_longer(cols = male_diff:female_diff, 
+               values_to = "diff", 
+               names_to = "gender")
+
+pe %>%
+  ggplot(aes(x = diff, y = after_stat(count/sum(count)),
+             fill = gender)) + 
+    geom_histogram(color = "white", bins = 50,
+                   position = "identity", alpha = 0.5) +
+    scale_y_continuous(labels = scales::percent_format())
+```
 
 
 
